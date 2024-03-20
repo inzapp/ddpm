@@ -73,8 +73,7 @@ class DataGenerator:
     #     img_f = self.preprocess(img)
     #     noise = self.get_noise()
     #     batch_x, batch_y = [], []
-    #     for _ in range(self.batch_size):
-    #         alpha_index = np.random.randint(self.diffusion_step)
+    #     for alpha_index in range(self.diffusion_step):
     #         batch_x.append(self.add_noise(img_f, noise, self.alphas[alpha_index]))
     #         batch_y.append(self.add_noise(img_f, noise, self.alphas[alpha_index+1]))
     #     batch_x = np.asarray(batch_x).astype(np.float32)
@@ -82,8 +81,8 @@ class DataGenerator:
     #     return batch_x, batch_y
 
     def get_noise(self):
-        # return np.random.uniform(-1.0, 1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32)
-        return np.clip(np.random.normal(loc=0.0, scale=1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32), -1.0, 1.0)
+        return np.random.uniform(-1.0, 1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32)
+        # return np.clip(np.random.normal(loc=0.0, scale=1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32), -1.0, 1.0)
 
     def add_noise(self, img_f, noise, alpha):
         return (img_f * alpha) + (noise * (1.0 - alpha))
@@ -96,7 +95,7 @@ class DataGenerator:
         return x
 
     def postprocess(self, y):
-        img = np.asarray(np.clip((y * 127.5) + 127.5, 0.0, 255.0)).astype('uint8')
+        img = np.asarray(np.clip((np.clip(y, -1.0, 1.0) * 127.5) + 127.5, 0.0, 255.0)).astype('uint8')
         if self.input_shape[-1] == 3:
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         img = img.reshape(self.input_shape)

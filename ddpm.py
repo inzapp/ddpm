@@ -155,7 +155,7 @@ class DDPM(CheckpointManager):
     def compute_gradient(self, model, optimizer, x, y_true):
         with tf.GradientTape() as tape:
             y_pred = model(x, training=True)
-            loss = tf.reduce_mean(tf.abs(y_true - y_pred))
+            loss = tf.reduce_mean(tf.square(y_true - y_pred))
         gradients = tape.gradient(loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         return loss
@@ -179,7 +179,7 @@ class DDPM(CheckpointManager):
         for diffusion_step in diffusion_steps:
             if show_progress:
                 print(f'diffusion_step : {diffusion_step+1} / {self.diffusion_step}')
-            y = np.array(self.graph_forward(self.model, x)[0])
+            y = np.clip(np.array(self.graph_forward(self.model, x)[0]), -1.0, 1.0)
             if show_progress:
                 img_diff = self.train_data_generator.postprocess(y)
                 cv2.imshow('img', img_diff)
