@@ -179,7 +179,7 @@ class DDPM(CheckpointManager):
         for diffusion_step in diffusion_steps:
             if show_progress:
                 print(f'diffusion_step : {diffusion_step+1} / {self.diffusion_step}')
-            y = np.clip(np.array(self.graph_forward(self.model, x)[0]), -1.0, 1.0)
+            y = np.array(self.graph_forward(self.model, x)[0])
             if show_progress:
                 img_diff = self.train_data_generator.postprocess(y)
                 cv2.imshow('img', img_diff)

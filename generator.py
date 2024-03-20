@@ -81,8 +81,7 @@ class DataGenerator:
     #     return batch_x, batch_y
 
     def get_noise(self):
-        return np.random.uniform(-1.0, 1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32)
-        # return np.clip(np.random.normal(loc=0.0, scale=1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32), -1.0, 1.0)
+        return np.random.normal(loc=0.0, scale=1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32)
 
     def add_noise(self, img_f, noise, alpha):
         return (img_f * alpha) + (noise * (1.0 - alpha))
