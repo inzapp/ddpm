@@ -60,7 +60,6 @@ class TrainingConfig:
                  iterations,
                  save_interval,
                  pretrained_model_path='',
-                 nv12=False,
                  training_view=False):
         self.train_image_path = train_image_path
         self.validation_image_path = validation_image_path
@@ -74,7 +73,6 @@ class TrainingConfig:
         self.iterations = iterations
         self.save_interval = save_interval
         self.pretrained_model_path = pretrained_model_path
-        self.nv12 = nv12
         self.training_view = training_view
 
 
@@ -86,8 +84,6 @@ class DDPM(CheckpointManager):
         assert config.input_shape[0] % max_stride == 0, f'input rows must be multiple of {max_stride}'
         assert config.input_shape[1] % max_stride == 0, f'input cols must be multiple of {max_stride}'
         assert config.input_shape[2] in [1, 3]
-        if config.nv12:
-            assert config.input_shape[-1] == 1, 'input channels must be 1 if use nv12 format'
         self.train_image_path = config.train_image_path
         self.validation_image_path = config.validation_image_path
         self.input_shape = config.input_shape
@@ -100,7 +96,6 @@ class DDPM(CheckpointManager):
         self.iterations = config.iterations
         self.save_interval = config.save_interval
         self.pretrained_model_path = config.pretrained_model_path
-        self.nv12 = config.nv12
         self.training_view = config.training_view
 
         self.set_model_name(config.model_name)
@@ -125,7 +120,9 @@ class DDPM(CheckpointManager):
             self.model = tf.keras.models.load_model(self.pretrained_model_path, compile=False, custom_objects={'tf': tf})
             self.input_shape = self.model.input_shape[1:]
             self.pretrained_iteration_count = self.parse_pretrained_iteration_count(self.pretrained_model_path)
-            self.nv12 = self.pretrained_model_path.find('nv12') > -1
+            parsed_diffusion_step = self.parse_content_str_by_content_key(self.pretrained_model_path, 'step')
+            if parsed_diffusion_step is not None:
+                self.diffusion_step = parsed_diffusion_step
         else:
             self.model = Model(input_shape=self.input_shape).build(unet_depth=self.unet_depth)
 
@@ -255,7 +252,7 @@ class DDPM(CheckpointManager):
             if self.training_view:
                 self.training_view_function()
             if iteration_count % 2000 == 0:
-                self.save_last_model(self.model, iteration_count)
+                self.save_last_model(self.model, iteration_count, content=f'_step_{self.diffusion_step}')
             # if iteration_count % self.save_interval == 0:
             #     self.save_best_model(self.model, iteration_count)
             if iteration_count == self.iterations:
