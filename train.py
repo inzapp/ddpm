@@ -47,12 +47,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--generate', action='store_true', help='generate image using pretrained model')
     parser.add_argument('--model', type=str, default='', help='pretrained model path')
-    parser.add_argument('--dataset', type=str, default='validation', help='dataset for evaluate, train or validation available')
-    parser.add_argument('--path', type=str, default='', help='image or video path for prediction or evaluation')
-    parser.add_argument('--save-count', type=int, default=0, help='count for save images')
     parser.add_argument('--grid', action='store_true', help='show grid images')
-    parser.add_argument('--show', action='store_true', help='show predicted images instead evaluate')
-    parser.add_argument('--no-x', action='store_true', help='predict using given gt dataset as no x pair')
+    parser.add_argument('--save-count', type=int, default=0, help='count for save images')
     args = parser.parse_args()
     if args.model != '':
         config.pretrained_model_path = args.model
