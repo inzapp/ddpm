@@ -51,6 +51,22 @@ class CheckpointManager:
                 break
         return iteration_count
 
+    def parse_content_str_by_content_key(self, pretrained_model_path, key):
+        content = None
+        sp = f'{os.path.basename(pretrained_model_path)[:-3]}'.split('_')
+        for i in range(len(sp)):
+            if sp[i] == key and i + 1 < len(sp):
+                content = sp[i+1]
+                if content.isdigit():
+                    content = int(content)
+                else:
+                    try:
+                        content = float(content)
+                    except:
+                        content = str(content)
+                break
+        return content
+
     def make_checkpoint_dir(self):
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
