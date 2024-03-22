@@ -167,25 +167,25 @@ class DDPM(CheckpointManager):
         img_pred = self.train_data_generator.postprocess(np.array(self.graph_forward(self.model, x)[0]))
         return img_pred
 
-    def generate(self, show_progress=False):
-        noise = self.train_data_generator.get_noise()
-        x = noise.reshape((1,) + noise.shape)
-        diffusion_steps = range(self.diffusion_step)
-        if not show_progress:
-            diffusion_steps = tqdm(diffusion_steps)
-        for diffusion_step in diffusion_steps:
-            if show_progress:
-                print(f'diffusion_step : {diffusion_step+1} / {self.diffusion_step}')
-            y = np.array(self.graph_forward(self.model, x)[0])
-            if show_progress:
-                img_diff = self.train_data_generator.postprocess(y)
-                cv2.imshow('img', img_diff)
-                key = cv2.waitKey(0)
-                if key == 27:
-                    exit(0)
-            x = y.reshape((1,) + y.shape)
-        img = self.train_data_generator.postprocess(y)
-        return img
+    def generate(self, show_progress=False, gt=False):
+        if gt:
+            return self.train_data_generator.resize(self.train_data_generator.load_image(np.random.choice(self.train_image_paths)), (self.input_shape[1], self.input_shape[0]))
+        else:
+            noise = self.train_data_generator.get_noise()
+            x = noise.reshape((1,) + noise.shape)
+            for diffusion_step in range(self.diffusion_step):
+                if show_progress:
+                    print(f'diffusion_step : {diffusion_step+1} / {self.diffusion_step}')
+                y = np.array(self.graph_forward(self.model, x)[0])
+                if show_progress:
+                    img_diff = self.train_data_generator.postprocess(y)
+                    cv2.imshow('img', img_diff)
+                    key = cv2.waitKey(0)
+                    if key == 27:
+                        exit(0)
+                x = y.reshape((1,) + y.shape)
+            img = self.train_data_generator.postprocess(y)
+            return img
 
     def show_generate_progress(self):
         while True:
@@ -194,15 +194,14 @@ class DDPM(CheckpointManager):
     def make_border(self, img, size=5):
         return cv2.copyMakeBorder(img, size, size, size, size, None, value=(192, 192, 192)) 
 
-    def generate_image_grid(self, grid_size=4):
+    def generate_image_grid(self, grid_size=4, gt=False):
         if grid_size == 'auto':
             border_size = 10
             grid_size = min(720 // (self.input_shape[0] + border_size), 1280 // (self.input_shape[1] + border_size))
         else:
             if type(grid_size) is str:
                 grid_size = int(grid_size)
-        print(f'start generating {grid_size * grid_size} images')
-        generated_images = [self.generate() for _ in range(grid_size * grid_size)]
+        generated_images = [self.generate(gt=gt) for _ in tqdm(range(grid_size * grid_size))]
         generated_image_grid = None
         for i in range(grid_size):
             grid_row = None
@@ -218,9 +217,9 @@ class DDPM(CheckpointManager):
                 generated_image_grid = np.append(generated_image_grid, grid_row, axis=0)
         return generated_image_grid
 
-    def show_grid_image(self):
+    def show_grid_image(self, gt):
         while True:
-            cv2.imshow('img', self.generate_image_grid())
+            cv2.imshow('img', self.generate_image_grid(gt=gt))
             key = cv2.waitKey(0)
             if key == 27:
                 exit(0)

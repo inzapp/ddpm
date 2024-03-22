@@ -48,6 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--generate', action='store_true', help='generate image using pretrained model')
     parser.add_argument('--model', type=str, default='', help='pretrained model path')
     parser.add_argument('--grid', action='store_true', help='show grid images')
+    parser.add_argument('--gt', action='store_true', help='show grid gt images')
     parser.add_argument('--save-count', type=int, default=0, help='count for save images')
     args = parser.parse_args()
     if args.model != '':
@@ -58,7 +59,7 @@ if __name__ == '__main__':
             ddpm.generate()
         else:
             if args.grid:
-                ddpm.show_grid_image()
+                ddpm.show_grid_image(gt=args.gt)
             else:
                 ddpm.show_generate_progress()
     else:
