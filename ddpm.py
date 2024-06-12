@@ -167,11 +167,12 @@ class DDPM(CheckpointManager):
         img_pred = self.train_data_generator.postprocess(np.array(self.graph_forward(self.model, x)[0]))
         return img_pred
 
-    def generate(self, show_progress=False, gt=False):
+    def generate(self, noise=None, show_progress=False, gt=False):
         if gt:
             return self.train_data_generator.resize(self.train_data_generator.load_image(np.random.choice(self.train_image_paths)), (self.input_shape[1], self.input_shape[0]))
         else:
-            noise = self.train_data_generator.get_noise()
+            if noise is None:
+                noise = self.train_data_generator.get_noise()
             x = noise.reshape((1,) + noise.shape)
             for diffusion_step in range(self.diffusion_step):
                 if show_progress:
@@ -190,6 +191,23 @@ class DDPM(CheckpointManager):
     def show_generate_progress(self):
         while True:
             self.generate(show_progress=True)
+
+    def generate_interpolation(self, interpolation_step=30):
+        a = self.train_data_generator.get_noise()
+        b = self.train_data_generator.get_noise()
+        alphas = self.train_data_generator.get_alphas(interpolation_step)
+        while True:
+            noise = None
+            for i in range(interpolation_step):
+                print(f'interpolation step : {i+1} / {interpolation_step}')
+                noise = self.train_data_generator.add_noise(a, b, alphas[i+1])
+                img = self.generate(noise=noise)
+                cv2.imshow('img', img)
+                key = cv2.waitKey(0)
+                if key == 27:
+                    exit(0)
+            b = noise
+            a = self.train_data_generator.get_noise()
 
     def make_border(self, img, size=5):
         return cv2.copyMakeBorder(img, size, size, size, size, None, value=(192, 192, 192)) 

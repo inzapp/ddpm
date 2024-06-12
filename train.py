@@ -46,6 +46,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--generate', action='store_true', help='generate image using pretrained model')
+    parser.add_argument('--generate-interpolation', action='store_true', help='generate interpolation image using pretrained model')
     parser.add_argument('--model', type=str, default='', help='pretrained model path')
     parser.add_argument('--grid', action='store_true', help='show grid images')
     parser.add_argument('--gt', action='store_true', help='show grid gt images')
@@ -62,6 +63,8 @@ if __name__ == '__main__':
                 ddpm.show_grid_image(gt=args.gt)
             else:
                 ddpm.show_generate_progress()
+    if args.generate_interpolation:
+        ddpm.generate_interpolation()
     else:
         ddpm.train()
 
