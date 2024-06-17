@@ -29,6 +29,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import cv2
 import random
+import datetime
 import warnings
 warnings.filterwarnings(action='ignore')
 import numpy as np
@@ -212,14 +213,17 @@ class DDPM(CheckpointManager):
     def make_border(self, img, size=5):
         return cv2.copyMakeBorder(img, size, size, size, size, None, value=(192, 192, 192)) 
 
-    def generate_image_grid(self, grid_size=4, gt=False):
+    def generate_image_grid(self, grid_size=4, gt=False, progress_bar=True):
         if grid_size == 'auto':
             border_size = 10
             grid_size = min(720 // (self.input_shape[0] + border_size), 1280 // (self.input_shape[1] + border_size))
         else:
             if type(grid_size) is str:
                 grid_size = int(grid_size)
-        generated_images = [self.generate(gt=gt) for _ in tqdm(range(grid_size * grid_size))]
+        loop = range(grid_size * grid_size)
+        if progress_bar:
+            loop = tqdm(loop)
+        generated_images = [self.generate(gt=gt) for _ in loop]
         generated_image_grid = None
         for i in range(grid_size):
             grid_row = None
@@ -235,12 +239,24 @@ class DDPM(CheckpointManager):
                 generated_image_grid = np.append(generated_image_grid, grid_row, axis=0)
         return generated_image_grid
 
-    def show_grid_image(self, gt):
+    def show_grid_image(self, grid_size, gt):
         while True:
-            cv2.imshow('img', self.generate_image_grid(gt=gt))
+            cv2.imshow('img', self.generate_image_grid(grid_size=grid_size, gt=gt))
             key = cv2.waitKey(0)
             if key == 27:
                 exit(0)
+
+    def save_generated_images(self, save_count, grid, grid_size):
+        save_dir = 'result_images'
+        os.makedirs(save_dir, exist_ok=True)
+        for i in tqdm(range(save_count)):
+            if grid:
+                img = self.generate_image_grid(grid_size=grid_size, progress_bar=False)
+            else:
+                img = self.generate()
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            save_path = f'{save_dir}/{i}_{timestamp}.jpg'
+            cv2.imwrite(save_path, img)
 
     def print_loss(self, progress_str, loss):
         loss_str = f'\r{progress_str}'
@@ -256,7 +272,7 @@ class DDPM(CheckpointManager):
         self.init_checkpoint_dir()
         iteration_count = self.pretrained_iteration_count
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
-        lr_scheduler = LRScheduler(lr=self.lr, iterations=self.iterations, warm_up=self.warm_up, policy='step')
+        lr_scheduler = LRScheduler(lr=self.lr, lrf=0.01, iterations=self.iterations, warm_up=self.warm_up, policy='onecycle')
         eta_calculator = ETACalculator(iterations=self.iterations)
         eta_calculator.start()
         while True:
