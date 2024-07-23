@@ -162,36 +162,39 @@ class DDPM(CheckpointManager):
     def graph_forward(self, model, x):
         return model(x, training=False)
 
-    def predict(self, img_x):
-        x = self.train_data_generator.preprocess(img_x, image_type='x')
-        x = x.reshape((1,) + x.shape)
-        img_pred = self.train_data_generator.postprocess(np.array(self.graph_forward(self.model, x)[0]))
-        return img_pred
-
-    def generate(self, noise=None, show_progress=False, gt=False):
+    def generate(self, noise=None, show_progress=False, gt=False, phase=1):
+        assert phase >= 1
         if gt:
             return self.train_data_generator.resize(self.train_data_generator.load_image(np.random.choice(self.train_image_paths)), (self.input_shape[1], self.input_shape[0]))
         else:
             if noise is None:
                 noise = self.train_data_generator.get_noise()
             x = noise.reshape((1,) + noise.shape)
-            for diffusion_step in range(self.diffusion_step):
-                if show_progress:
-                    print(f'diffusion_step : {diffusion_step+1} / {self.diffusion_step}')
-                y = np.array(self.graph_forward(self.model, x)[0])
-                if show_progress:
-                    img_diff = self.train_data_generator.postprocess(y)
-                    cv2.imshow('img', img_diff)
-                    key = cv2.waitKey(0)
-                    if key == 27:
-                        exit(0)
-                x = y.reshape((1,) + y.shape)
+            alphas = self.train_data_generator.get_alphas(self.diffusion_step)
+            phase = min(phase, self.diffusion_step)
+            for i in range(phase):
+                phase_index = 0 if i == 0 else int((self.diffusion_step + 1) * (i / phase))
+                if i > 0:
+                    noise = self.train_data_generator.get_noise()
+                    x = self.train_data_generator.add_noise(x, noise, alphas[phase_index])
+                for j in range(phase_index, self.diffusion_step, 1):
+                    y = np.array(self.graph_forward(self.model, x)[0])
+                    if show_progress:
+                        print(f'phase : {i+1} / {phase}, diffusion_step : {j+1} / {self.diffusion_step}')
+                        img_diff = self.train_data_generator.postprocess(y)
+                        cv2.imshow('img', img_diff)
+                        key = cv2.waitKey(0)
+                        if key == 27:
+                            exit(0)
+                    x = y.reshape((1,) + y.shape)
+            if show_progress:
+                print()
             img = self.train_data_generator.postprocess(y)
             return img
 
-    def show_generate_progress(self):
+    def show_generate_progress(self, phase):
         while True:
-            self.generate(show_progress=True)
+            self.generate(show_progress=True, phase=phase)
 
     def generate_interpolation(self, interpolation_step=30):
         a = self.train_data_generator.get_noise()
@@ -202,7 +205,7 @@ class DDPM(CheckpointManager):
             for i in range(interpolation_step):
                 print(f'interpolation step : {i+1} / {interpolation_step}')
                 noise = self.train_data_generator.add_noise(a, b, alphas[i+1])
-                img = self.generate(noise=noise)
+                img = self.generate(noise=noise, phase=1)
                 cv2.imshow('img', img)
                 key = cv2.waitKey(0)
                 if key == 27:
@@ -213,7 +216,7 @@ class DDPM(CheckpointManager):
     def make_border(self, img, size=5):
         return cv2.copyMakeBorder(img, size, size, size, size, None, value=(192, 192, 192)) 
 
-    def generate_image_grid(self, grid_size=4, gt=False, progress_bar=True):
+    def generate_image_grid(self, grid_size=4, gt=False, progress_bar=True, phase=1):
         if grid_size == 'auto':
             border_size = 10
             grid_size = min(720 // (self.input_shape[0] + border_size), 1280 // (self.input_shape[1] + border_size))
@@ -223,7 +226,7 @@ class DDPM(CheckpointManager):
         loop = range(grid_size * grid_size)
         if progress_bar:
             loop = tqdm(loop)
-        generated_images = [self.generate(gt=gt) for _ in loop]
+        generated_images = [self.generate(gt=gt, phase=phase) for _ in loop]
         generated_image_grid = None
         for i in range(grid_size):
             grid_row = None
@@ -239,21 +242,21 @@ class DDPM(CheckpointManager):
                 generated_image_grid = np.append(generated_image_grid, grid_row, axis=0)
         return generated_image_grid
 
-    def show_grid_image(self, grid_size, gt):
+    def show_grid_image(self, grid_size, gt, phase):
         while True:
-            cv2.imshow('img', self.generate_image_grid(grid_size=grid_size, gt=gt))
+            cv2.imshow('img', self.generate_image_grid(grid_size=grid_size, gt=gt, phase=phase))
             key = cv2.waitKey(0)
             if key == 27:
                 exit(0)
 
-    def save_generated_images(self, save_count, grid, grid_size):
+    def save_generated_images(self, save_count, grid, grid_size, phase):
         save_dir = 'result_images'
         os.makedirs(save_dir, exist_ok=True)
         for i in tqdm(range(save_count)):
             if grid:
-                img = self.generate_image_grid(grid_size=grid_size, progress_bar=False)
+                img = self.generate_image_grid(grid_size=grid_size, progress_bar=False, phase=phase)
             else:
-                img = self.generate()
+                img = self.generate(phase=phase)
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             save_path = f'{save_dir}/{i}_{timestamp}.jpg'
             cv2.imwrite(save_path, img)
@@ -294,12 +297,11 @@ class DDPM(CheckpointManager):
 
     def training_view_function(self):
         cur_time = time()
-        if cur_time - self.live_view_previous_time > 0.5:
+        if cur_time - self.live_view_previous_time > 10.0:
             self.live_view_previous_time = cur_time
-            path = np.random.choice(self.validation_image_paths)
-            img = self.validation_data_generator.load_image(path)
-            img_pred = self.predict(img)
-            img_concat = self.concat([img, img_pred])
-            cv2.imshow('training view', img_concat)
-            cv2.waitKey(1)
+            cv2.imshow('img', self.generate_image_grid(grid_size=4, progress_bar=False))
+            key = cv2.waitKey(1)
+            if key == 27:
+                cv2.destroyAllWindows()
+                self.training_view = False
 

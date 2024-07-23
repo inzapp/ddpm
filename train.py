@@ -61,9 +61,9 @@ if __name__ == '__main__':
             ddpm.save_generated_images(save_count=args.save_count, grid=args.grid, grid_size=args.grid_size)
         else:
             if args.grid:
-                ddpm.show_grid_image(grid_size=args.grid_size, gt=args.gt)
+                ddpm.show_grid_image(grid_size=args.grid_size, gt=args.gt, phase=args.phase)
             else:
-                ddpm.show_generate_progress()
+                ddpm.show_generate_progress(phase=args.phase)
     elif args.generate_interpolation:
         ddpm.generate_interpolation()
     else:
