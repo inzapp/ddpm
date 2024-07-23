@@ -50,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='', help='pretrained model path')
     parser.add_argument('--grid', action='store_true', help='show grid images')
     parser.add_argument('--grid-size', type=int, default=4, help='grid size of grid image')
+    parser.add_argument('--phase', type=int, default=1, help='denoising diffusion phase')
     parser.add_argument('--gt', action='store_true', help='show grid gt images')
     parser.add_argument('--save-count', type=int, default=0, help='count for save images')
     args = parser.parse_args()
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     ddpm = DDPM(config=config)
     if args.generate:
         if args.save_count > 0:
-            ddpm.save_generated_images(save_count=args.save_count, grid=args.grid, grid_size=args.grid_size)
+            ddpm.save_generated_images(save_count=args.save_count, grid=args.grid, grid_size=args.grid_size, phase=args.phase)
         else:
             if args.grid:
                 ddpm.show_grid_image(grid_size=args.grid_size, gt=args.gt, phase=args.phase)
