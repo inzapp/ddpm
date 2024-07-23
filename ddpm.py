@@ -299,7 +299,7 @@ class DDPM(CheckpointManager):
         cur_time = time()
         if cur_time - self.live_view_previous_time > 10.0:
             self.live_view_previous_time = cur_time
-            cv2.imshow('img', self.generate_image_grid(grid_size=4, progress_bar=False))
+            cv2.imshow('img', self.generate_image_grid(grid_size=2, progress_bar=False))
             key = cv2.waitKey(1)
             if key == 27:
                 cv2.destroyAllWindows()
