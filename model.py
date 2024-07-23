@@ -24,14 +24,13 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
-import os
 import tensorflow as tf
 
 
 class Model:
     def __init__(self, input_shape):
         self.input_shape = input_shape
-        self.infos = [[16, 1], [32, 1], [64, 1], [128, 1], [256, 1], [256, 1]]
+        self.infos = [[16, 1], [32, 1], [64, 1], [128, 1], [256, 1], [512, 1]]
 
     def build(self, unet_depth, fcn=True, bn=False, activation='leaky'):
         if fcn:
@@ -87,7 +86,7 @@ class Model:
         output_layer = self.output_layer(x, input_layer, name='diffusion_output')
         return tf.keras.models.Model(input_layer, output_layer)
 
-    def output_layer(self, x, input_layer, additive=False, name='diffusion_output'):
+    def output_layer(self, x, input_layer, additive=True, name='diffusion_output'):
         if additive:
             x = self.conv2d(x, self.input_shape[-1], 1, 1, activation='linear')
             x = self.add([x, input_layer], name=name)
