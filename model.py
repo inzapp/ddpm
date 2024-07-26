@@ -82,7 +82,7 @@ class Model:
             x = self.upsampling2d(x)
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
-                x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
+                x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
         output_layer = self.output_layer(x, input_layer, name='diffusion_output')
         return tf.keras.models.Model(input_layer, output_layer)
 
