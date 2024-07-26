@@ -66,6 +66,24 @@ class DataGenerator:
         return batch_x, batch_y
 
     # def load(self):
+    #     assert self.batch_size % self.diffusion_step == 0
+    #     chunk_size = self.batch_size // self.diffusion_step
+    #     fs = []
+    #     for _ in range(self.diffusion_step * chunk_size):
+    #         fs.append(self.pool.submit(self.load_image, self.next_image_path()))
+    #     batch_x, batch_y = [], []
+    #     for i in range(len(fs)):
+    #         img = fs[i].result()
+    #         img_f = self.preprocess(img)
+    #         noise = self.get_noise()
+    #         alpha_index = i % self.diffusion_step
+    #         batch_x.append(self.add_noise(img_f, noise, self.alphas[alpha_index]))
+    #         batch_y.append(self.add_noise(img_f, noise, self.alphas[alpha_index+1]))
+    #     batch_x = np.asarray(batch_x).astype(np.float32)
+    #     batch_y = np.asarray(batch_y).astype(np.float32)
+    #     return batch_x, batch_y
+
+    # def load(self):
     #     img = self.load_image(self.next_image_path())
     #     img_f = self.preprocess(img)
     #     noise = self.get_noise()
@@ -97,7 +115,7 @@ class DataGenerator:
         return x
 
     def postprocess(self, y):
-        img = np.asarray(np.clip((np.clip(y, -1.0, 1.0) * 127.5) + 127.5, 0.0, 255.0)).astype('uint8')
+        img = np.asarray(np.clip((np.clip(y, -1.0, 1.0) * 127.5) + 127.5, 0.0, 255.0)).astype(np.uint8)
         if self.input_shape[-1] == 3:
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         img = img.reshape(self.input_shape)
