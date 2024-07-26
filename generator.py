@@ -47,9 +47,6 @@ class DataGenerator:
         self.img_index = 0
         self.pool = ThreadPoolExecutor(8)
         self.alphas = self.get_alphas(self.diffusion_step)
-        # self.alphas = np.sqrt(np.linspace(0.0, 1.0, num=self.diffusion_step+1))
-        # self.alphas = np.linspace(0.0, 1.0, num=self.diffusion_step+1) ** 2.0
-        # self.alphas = 0.5 - 0.5 * np.cos(np.linspace(0, np.pi, num=diffusion_step+1))
         np.random.shuffle(self.image_paths)
 
     def load(self):
@@ -82,6 +79,9 @@ class DataGenerator:
 
     def get_alphas(self, step):
         return np.linspace(0.0, 1.0, num=step+1)
+        # return np.sqrt(np.linspace(0.0, 1.0, num=step+1))
+        # return np.linspace(0.0, 1.0, num=step+1) ** 2.0
+        # return 0.5 - 0.5 * np.cos(np.linspace(0, np.pi, num=step+1))
 
     def get_noise(self):
         return np.random.normal(loc=0.0, scale=1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32)
