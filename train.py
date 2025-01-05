@@ -41,7 +41,6 @@ if __name__ == '__main__':
         unet_depth=5,
         diffusion_step=16,
         iterations=100000,
-        save_interval=100000,
         training_view=False)
 
     parser = argparse.ArgumentParser()

@@ -59,7 +59,7 @@ class TrainingConfig:
                  unet_depth,
                  diffusion_step,
                  iterations,
-                 save_interval,
+                 save_interval=0,
                  pretrained_model_path='',
                  training_view=False):
         self.train_image_path = train_image_path
