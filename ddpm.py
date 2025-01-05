@@ -81,7 +81,6 @@ class DDPM(CheckpointManager):
     def __init__(self, config):
         super().__init__()
         max_stride = 2 ** config.unet_depth
-        assert config.save_interval >= 1000
         assert config.input_shape[0] % max_stride == 0, f'input rows must be multiple of {max_stride}'
         assert config.input_shape[1] % max_stride == 0, f'input cols must be multiple of {max_stride}'
         assert config.input_shape[2] in [1, 3]
@@ -98,8 +97,8 @@ class DDPM(CheckpointManager):
         self.save_interval = config.save_interval
         self.pretrained_model_path = config.pretrained_model_path
         self.training_view = config.training_view
+        self.model_name = config.model_name
 
-        self.set_model_name(config.model_name)
         self.live_view_previous_time = time()
 
         if not self.is_valid_path(self.train_image_path):
@@ -273,7 +272,7 @@ class DDPM(CheckpointManager):
         self.train_data_generator.start()
         print(f'\ntrain on {len(self.train_image_paths)} samples.')
         print('start training')
-        self.init_checkpoint_dir()
+        self.init_checkpoint_dir(model_name=self.model_name)
         iteration_count = self.pretrained_iteration_count
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
         lr_scheduler = LRScheduler(lr=self.lr, lrf=0.01, iterations=self.iterations, warm_up=self.warm_up, policy='step')

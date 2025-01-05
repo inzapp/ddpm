@@ -32,12 +32,9 @@ from glob import glob
 
 class CheckpointManager:
     def __init__(self):
-        self.model_name = None
         self.checkpoint_path = None
         self.best_metric = None
-
-    def set_model_name(self, model_name):
-        self.model_name = model_name
+        self.pretrained_iteration_count = 0
 
     def parse_pretrained_iteration_count(self, pretrained_model_path):
         iteration_count = 0
@@ -70,23 +67,30 @@ class CheckpointManager:
     def make_checkpoint_dir(self):
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
-    def init_checkpoint_dir(self):
+    def init_checkpoint_dir(self, model_name='', model_type='', extra_function=None):
         inc = 0
         while True:
             if inc == 0:
-                new_checkpoint_path = f'checkpoint/{self.model_name}'
+                if model_type == '':
+                    new_checkpoint_path = f'checkpoint/{model_name}'
+                else:
+                    new_checkpoint_path = f'checkpoint/{model_name}/{model_type}'
             else:
-                new_checkpoint_path = f'checkpoint/{self.model_name}_{inc}'
+                if model_type == '':
+                    new_checkpoint_path = f'checkpoint/{model_name}{inc}'
+                else:
+                    new_checkpoint_path = f'checkpoint/{model_name}/{model_type}{inc}'
             if os.path.exists(new_checkpoint_path) and os.path.isdir(new_checkpoint_path):
                 inc += 1
             else:
                 break
         self.checkpoint_path = new_checkpoint_path
         self.make_checkpoint_dir()
-        print(f'checkpoint path : {self.checkpoint_path}')
+        if extra_function is not None:
+            extra_function()
 
     def remove_last_model(self):
-        for last_model_path in glob(f'{self.checkpoint_path}/last_*.h5'):
+        for last_model_path in glob(f'{self.checkpoint_path}/last*.h5'):
             os.remove(last_model_path)
 
     def save_last_model(self, model, iteration_count, content=''):
@@ -99,13 +103,21 @@ class CheckpointManager:
         sh.move(backup_path, save_path)
         return save_path
 
+    def get_last_model_path(self, path):
+        model_path = None
+        paths = glob(f'{path}/last*.h5')
+        if len(paths) > 0:
+            model_path = paths[0]
+        return model_path
+
     def remove_best_model(self):
-        for best_model_path in glob(f'{self.checkpoint_path}/best_*.h5'):
+        for best_model_path in glob(f'{self.checkpoint_path}/best*.h5'):
             os.remove(best_model_path)
 
-    def save_best_model(self, model, iteration_count, metric, content=''):
+    def save_best_model(self, model, iteration_count, metric, mode='', content=''):
+        assert mode in ['min', 'max']
         save_path = None
-        if self.best_metric is None or metric > self.best_metric:
+        if (self.best_metric is None) or (metric < self.best_metric if mode == 'min' else metric >= self.best_metric):
             self.best_metric = metric
             self.make_checkpoint_dir()
             save_path = f'{self.checkpoint_path}/best_{iteration_count}_iter{content}.h5'
@@ -115,4 +127,11 @@ class CheckpointManager:
             self.remove_best_model()
             sh.move(backup_path, save_path)
         return save_path
+
+    def get_best_model_path(self, path):
+        model_path = None
+        paths = glob(f'{path}/best*.h5')
+        if len(paths) > 0:
+            model_path = paths[0]
+        return model_path
 
