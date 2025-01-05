@@ -25,11 +25,16 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 import os
+import sys
 import cv2
+import signal
+import threading
 import numpy as np
 import tensorflow as tf
 import albumentations as A
 
+from time import sleep
+from collections import deque
 from concurrent.futures.thread import ThreadPoolExecutor
 
 
@@ -49,51 +54,83 @@ class DataGenerator:
         self.alphas = self.get_alphas(self.diffusion_step)
         np.random.shuffle(self.image_paths)
 
+        self.q_max_size = 1024
+        self.q_lock = threading.Lock()
+        self.q_thread = threading.Thread(target=self.load_xy_into_q)
+        self.q_thread.daemon = True
+        self.q = deque()
+        self.q_thread_running = False
+        self.q_thread_pause = False
+        self.q_indices = list(range(self.q_max_size))
+
+    def signal_handler(self, sig, frame):
+        print()
+        print(f'{signal.Signals(sig).name} signal detected, please wait until the end of the thread')
+        self.stop()
+        print(f'exit successfully')
+        sys.exit(0)
+
+    def start(self):
+        self.q_thread_running = True
+        self.q_thread.start()
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        while True:
+            sleep(1.0)
+            percentage = (len(self.q) / self.q_max_size) * 100.0
+            print(f'prefetching training data... {percentage:.1f}%')
+            with self.q_lock:
+                if len(self.q) >= self.q_max_size:
+                    print()
+                    break
+
+    def stop(self):
+        if self.q_thread_running:
+            self.q_thread_running = False
+            while self.q_thread.is_alive():
+                sleep(0.1)
+
+    def pause(self):
+        if self.q_thread_running:
+            self.q_thread_pause = True
+
+    def resume(self):
+        if self.q_thread_running:
+            self.q_thread_pause = False
+
+    def exit(self):
+        self.signal_handler(signal.SIGINT, None)
+
+    def load_xy(self):
+        img = self.load_image(self.next_image_path())
+        img_f = self.preprocess(img)
+        alpha_index = np.random.randint(self.diffusion_step)
+        noise = self.get_noise()
+        x = self.add_noise(img_f, noise, self.alphas[alpha_index])
+        y = self.add_noise(img_f, noise, self.alphas[alpha_index+1])
+        return x, y
+
+    def load_xy_into_q(self):
+        while self.q_thread_running:
+            if self.q_thread_pause:
+                sleep(1.0)
+            else:
+                x, y = self.load_xy()
+                with self.q_lock:
+                    if len(self.q) == self.q_max_size:
+                        self.q.popleft()
+                    self.q.append((x, y))
+
     def load(self):
-        fs = []
-        for _ in range(self.batch_size):
-            fs.append(self.pool.submit(self.load_image, self.next_image_path()))
         batch_x, batch_y = [], []
-        for f in fs:
-            img = f.result()
-            img_f = self.preprocess(img)
-            alpha_index = np.random.randint(self.diffusion_step)
-            noise = self.get_noise()
-            batch_x.append(self.add_noise(img_f, noise, self.alphas[alpha_index]))
-            batch_y.append(self.add_noise(img_f, noise, self.alphas[alpha_index+1]))
+        for i in np.random.choice(self.q_indices, self.batch_size, replace=False):
+            with self.q_lock:
+                x, y = self.q[i]
+                batch_x.append(np.array(x))
+                batch_y.append(np.array(y))
         batch_x = np.asarray(batch_x).astype(np.float32)
-        batch_y = np.asarray(batch_y).astype(np.float32)
+        batch_x = np.asarray(batch_x).astype(np.float32)
         return batch_x, batch_y
-
-    # def load(self):
-    #     assert self.batch_size % self.diffusion_step == 0
-    #     chunk_size = self.batch_size // self.diffusion_step
-    #     fs = []
-    #     for _ in range(self.diffusion_step * chunk_size):
-    #         fs.append(self.pool.submit(self.load_image, self.next_image_path()))
-    #     batch_x, batch_y = [], []
-    #     for i in range(len(fs)):
-    #         img = fs[i].result()
-    #         img_f = self.preprocess(img)
-    #         noise = self.get_noise()
-    #         alpha_index = i % self.diffusion_step
-    #         batch_x.append(self.add_noise(img_f, noise, self.alphas[alpha_index]))
-    #         batch_y.append(self.add_noise(img_f, noise, self.alphas[alpha_index+1]))
-    #     batch_x = np.asarray(batch_x).astype(np.float32)
-    #     batch_y = np.asarray(batch_y).astype(np.float32)
-    #     return batch_x, batch_y
-
-    # def load(self):
-    #     img = self.load_image(self.next_image_path())
-    #     img_f = self.preprocess(img)
-    #     noise = self.get_noise()
-    #     batch_x, batch_y = [], []
-    #     for alpha_index in range(self.diffusion_step):
-    #         batch_x.append(self.add_noise(img_f, noise, self.alphas[alpha_index]))
-    #         batch_y.append(self.add_noise(img_f, noise, self.alphas[alpha_index+1]))
-    #     batch_x = np.asarray(batch_x).astype(np.float32)
-    #     batch_y = np.asarray(batch_y).astype(np.float32)
-    #     return batch_x, batch_y
 
     def get_alphas(self, step):
         return np.linspace(0.0, 1.0, num=step+1)

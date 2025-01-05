@@ -36,10 +36,10 @@ if __name__ == '__main__':
         model_name='mnist',
         input_shape=(32, 32, 1),
         lr=0.001,
-        warm_up=0.0,
+        warm_up=0.5,
         batch_size=32,
         unet_depth=5,
-        diffusion_step=8,
+        diffusion_step=16,
         iterations=100000,
         save_interval=100000,
         training_view=False)

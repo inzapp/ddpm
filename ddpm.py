@@ -270,12 +270,13 @@ class DDPM(CheckpointManager):
         self.exit_if_no_images(self.train_image_paths, 'train')
         self.exit_if_no_images(self.validation_image_paths, 'validation')
         self.model.summary()
+        self.train_data_generator.start()
         print(f'\ntrain on {len(self.train_image_paths)} samples.')
         print('start training')
         self.init_checkpoint_dir()
         iteration_count = self.pretrained_iteration_count
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
-        lr_scheduler = LRScheduler(lr=self.lr, lrf=0.01, iterations=self.iterations, warm_up=self.warm_up, policy='onecycle')
+        lr_scheduler = LRScheduler(lr=self.lr, lrf=0.01, iterations=self.iterations, warm_up=self.warm_up, policy='step')
         eta_calculator = ETACalculator(iterations=self.iterations)
         eta_calculator.start()
         while True:
@@ -285,14 +286,13 @@ class DDPM(CheckpointManager):
             iteration_count += 1
             progress_str = eta_calculator.update(iteration_count)
             self.print_loss(progress_str, loss)
-            if self.training_view:
-                self.training_view_function()
+            # if self.training_view:
+            #     self.training_view_function()
             if iteration_count % 2000 == 0:
                 self.save_last_model(self.model, iteration_count, content=f'_step_{self.diffusion_step}')
-            # if iteration_count % self.save_interval == 0:
-            #     self.save_best_model(self.model, iteration_count)
             if iteration_count == self.iterations:
-                print('train end successfully')
+                self.train_data_generator.stop()
+                print('\ntrain end successfully')
                 return
 
     def training_view_function(self):
