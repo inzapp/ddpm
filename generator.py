@@ -129,7 +129,7 @@ class DataGenerator:
                 batch_x.append(np.array(x))
                 batch_y.append(np.array(y))
         batch_x = np.asarray(batch_x).astype(np.float32)
-        batch_x = np.asarray(batch_x).astype(np.float32)
+        batch_y = np.asarray(batch_y).astype(np.float32)
         return batch_x, batch_y
 
     def get_alphas(self, step):
