@@ -190,8 +190,8 @@ class DDPM(CheckpointManager):
                         img_pe_in = self.train_data_generator.postprocess(pe[0])
                         img_pe_out = self.train_data_generator.postprocess(y_pe)
                         cv2.imshow('img_step', img_step)
-                        cv2.imshow('pe_in', img_pe_in)
-                        cv2.imshow('pe_out', img_pe_out)
+                        # cv2.imshow('pe_in', img_pe_in)
+                        # cv2.imshow('pe_out', img_pe_out)
                         key = cv2.waitKey(0)
                         if key == 27:
                             exit(0)
