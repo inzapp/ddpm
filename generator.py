@@ -135,12 +135,12 @@ class DataGenerator:
         batch_y = np.asarray(batch_y).astype(np.float32)
         return batch_x, batch_y
 
-    def positional_encoding_2d(self, alpha_index):
+    def positional_encoding_2d(self, alpha_index, freq=10):
         position_value = alpha_index / float(self.diffusion_step)
         x = np.linspace(-1.0, 1.0, self.input_shape[1])
         y = np.linspace(-1.0, 1.0, self.input_shape[0])
         x_grid, y_grid = np.meshgrid(x, y)
-        unique_pe = np.sin(10 * np.pi * position_value * x_grid) * np.cos(10 * np.pi * position_value * y_grid)
+        unique_pe = np.sin(freq * np.pi * position_value * x_grid) * np.cos(freq * np.pi * position_value * y_grid)
         unique_pe = np.reshape(unique_pe, (self.input_shape[0], self.input_shape[1], 1))
         return unique_pe
 
