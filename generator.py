@@ -106,8 +106,11 @@ class DataGenerator:
         img_f = self.preprocess(img)
         alpha_index = np.random.randint(self.diffusion_step)
         noise = self.get_noise()
+        pe = self.positional_encoding_2d(alpha_index + 1)
         x = self.add_noise(img_f, noise, self.alphas[alpha_index])
+        x = np.concatenate([x, pe], axis=-1)
         y = self.add_noise(img_f, noise, self.alphas[alpha_index+1])
+        y = np.concatenate([y, pe], axis=-1)
         return x, y
 
     def load_xy_into_q(self):
@@ -131,6 +134,15 @@ class DataGenerator:
         batch_x = np.asarray(batch_x).astype(np.float32)
         batch_y = np.asarray(batch_y).astype(np.float32)
         return batch_x, batch_y
+
+    def positional_encoding_2d(self, alpha_index):
+        position_value = alpha_index / float(self.diffusion_step)
+        x = np.linspace(-1.0, 1.0, self.input_shape[1])
+        y = np.linspace(-1.0, 1.0, self.input_shape[0])
+        x_grid, y_grid = np.meshgrid(x, y)
+        unique_pe = np.sin(10 * np.pi * position_value * x_grid) * np.cos(10 * np.pi * position_value * y_grid)
+        unique_pe = np.reshape(unique_pe, (self.input_shape[0], self.input_shape[1], 1))
+        return unique_pe
 
     def get_alphas(self, step):
         return np.linspace(0.0, 1.0, num=step+1)

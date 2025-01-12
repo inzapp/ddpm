@@ -29,7 +29,7 @@ import tensorflow as tf
 
 class Model:
     def __init__(self, input_shape):
-        self.input_shape = input_shape
+        self.input_shape = (input_shape[0], input_shape[1], input_shape[2] + 1)
         self.infos = [[16, 1], [32, 1], [64, 1], [128, 1], [256, 1], [512, 1]]
 
     def build(self, unet_depth, fcn=True, bn=False, activation='leaky'):
