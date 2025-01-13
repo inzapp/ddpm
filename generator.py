@@ -106,34 +106,34 @@ class DataGenerator:
         img_f = self.preprocess(img)
         alpha_index = np.random.randint(self.diffusion_step)
         noise = self.get_noise()
-        pe = self.positional_encoding_2d(alpha_index + 1)
         x = self.add_noise(img_f, noise, self.alphas[alpha_index])
-        x = np.concatenate([x, pe], axis=-1)
         y = self.add_noise(img_f, noise, self.alphas[alpha_index+1])
-        y = np.concatenate([y, pe], axis=-1)
-        return x, y
+        pe = self.positional_encoding_2d(alpha_index)
+        return x, y, pe
 
     def load_xy_into_q(self):
         while self.q_thread_running:
             if self.q_thread_pause:
                 sleep(1.0)
             else:
-                x, y = self.load_xy()
+                x, y, pe = self.load_xy()
                 with self.q_lock:
                     if len(self.q) == self.q_max_size:
                         self.q.popleft()
-                    self.q.append((x, y))
+                    self.q.append((x, y, pe))
 
     def load(self):
-        batch_x, batch_y = [], []
+        batch_x, batch_y, batch_pe = [], [], []
         for i in np.random.choice(self.q_indices, self.batch_size, replace=False):
             with self.q_lock:
-                x, y = self.q[i]
+                x, y, pe = self.q[i]
                 batch_x.append(np.array(x))
                 batch_y.append(np.array(y))
+                batch_pe.append(np.array(pe))
         batch_x = np.asarray(batch_x).astype(np.float32)
         batch_y = np.asarray(batch_y).astype(np.float32)
-        return batch_x, batch_y
+        batch_pe = np.asarray(batch_pe).astype(np.float32)
+        return [batch_x, batch_pe], batch_y
 
     def positional_encoding_2d(self, alpha_index, freq=10):
         position_value = alpha_index / float(self.diffusion_step)

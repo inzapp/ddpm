@@ -118,8 +118,7 @@ class DDPM(CheckpointManager):
                 print(f'file not found : {self.pretrained_model_path}')
                 exit(0)
             self.model = tf.keras.models.load_model(self.pretrained_model_path, compile=False, custom_objects={'tf': tf})
-            self.input_shape = self.model.input_shape[1:]
-            self.input_shape = (self.input_shape[0], self.input_shape[1], self.input_shape[2] - 1)
+            self.input_shape = self.model.input_shape[0][1:]
             self.pretrained_iteration_count = self.parse_pretrained_iteration_count(self.pretrained_model_path)
             parsed_diffusion_step = self.parse_content_str_by_content_key(self.pretrained_model_path, 'step')
             if parsed_diffusion_step is not None:
@@ -178,27 +177,20 @@ class DDPM(CheckpointManager):
                     noise = self.train_data_generator.get_noise()
                     x = self.train_data_generator.add_noise(x, noise, alphas[phase_index])
                 for j in range(phase_index, self.diffusion_step, 1):
-                    pe = self.train_data_generator.positional_encoding_2d(j + 1)
-                    pe = pe.reshape((1,) + pe.shape)
-                    x = np.concatenate([x, pe], axis=-1)
-                    y = np.array(self.graph_forward(self.model, x)[0])
-                    y_img = y[:, :, :self.input_shape[-1]]
-                    y_pe = y[:, :, -1]
+                    pe = self.train_data_generator.positional_encoding_2d(j)
+                    y = np.array(self.graph_forward(self.model, [x, pe.reshape((1,) + pe.shape)])[0])
                     if show_progress:
                         print(f'phase : {i+1} / {phase}, diffusion_step : {j+1} / {self.diffusion_step}')
-                        img_step = self.train_data_generator.postprocess(y_img)
-                        img_pe_in = self.train_data_generator.postprocess(pe[0])
-                        img_pe_out = self.train_data_generator.postprocess(y_pe)
+                        img_step = self.train_data_generator.postprocess(y)
                         cv2.imshow('img_step', img_step)
-                        # cv2.imshow('pe_in', img_pe_in)
-                        # cv2.imshow('pe_out', img_pe_out)
+                        cv2.imshow('pe', self.train_data_generator.postprocess(pe))
                         key = cv2.waitKey(0)
                         if key == 27:
                             exit(0)
-                    x = y_img.reshape((1,) + y_img.shape)
+                    x = y.reshape((1,) + y.shape)
             if show_progress:
                 print()
-            img = self.train_data_generator.postprocess(y_img)
+            img = self.train_data_generator.postprocess(y)
             return img
 
     def show_generate_progress(self, phase):

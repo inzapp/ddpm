@@ -29,7 +29,7 @@ import tensorflow as tf
 
 class Model:
     def __init__(self, input_shape):
-        self.input_shape = (input_shape[0], input_shape[1], input_shape[2] + 1)
+        self.input_shape = input_shape
         self.infos = [[16, 1], [32, 1], [64, 1], [128, 1], [256, 1], [512, 1]]
 
     def build(self, unet_depth, fcn=True, bn=False, activation='leaky'):
@@ -39,8 +39,9 @@ class Model:
             return self.build_scaling_model(unet_depth=unet_depth, bn=bn, activation=activation)
 
     def build_fcn_model(self, unet_depth, bn, activation):
-        input_layer = tf.keras.layers.Input(shape=self.input_shape)
-        x = input_layer
+        input_layer_z = tf.keras.layers.Input(shape=self.input_shape)
+        input_layer_pe = tf.keras.layers.Input(shape=self.input_shape[:2] + (1,))
+        x = self.concat([input_layer_z, input_layer_pe])
         xs = []
         channels, n_convs = self.infos[0]
         for _ in range(n_convs):
@@ -60,12 +61,13 @@ class Model:
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
                 x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
-        output_layer = self.output_layer(x, input_layer, name='diffusion_output')
-        return tf.keras.models.Model(input_layer, output_layer)
+        output_layer = self.output_layer(x, input_layer_z, name='diffusion_output')
+        return tf.keras.models.Model([input_layer_z, input_layer_pe], output_layer)
 
     def build_scaling_model(self, unet_depth, bn, activation):
-        input_layer = tf.keras.layers.Input(shape=self.input_shape)
-        x = input_layer
+        input_layer_z = tf.keras.layers.Input(shape=self.input_shape)
+        input_layer_pe = tf.keras.layers.Input(shape=self.input_shape[:2] + (1,))
+        x = self.concat([input_layer_z, input_layer_pe])
         xs = []
         channels, n_convs = self.infos[0]
         for _ in range(n_convs):
@@ -83,8 +85,8 @@ class Model:
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
                 x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
-        output_layer = self.output_layer(x, input_layer, name='diffusion_output')
-        return tf.keras.models.Model(input_layer, output_layer)
+        output_layer = self.output_layer(x, input_layer_z, name='diffusion_output')
+        return tf.keras.models.Model([input_layer_z, input_layer_pe], output_layer)
 
     def output_layer(self, x, input_layer, additive=True, name='diffusion_output'):
         if additive:
@@ -130,6 +132,9 @@ class Model:
 
     def add(self, x, name=None):
         return tf.keras.layers.Add(name=name)(x)
+
+    def concat(self, x):
+        return tf.keras.layers.Concatenate()(x)
 
     def batch_normalization(self, x):
         return tf.keras.layers.BatchNormalization()(x)
