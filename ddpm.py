@@ -183,7 +183,7 @@ class DDPM(CheckpointManager):
                         print(f'phase : {i+1} / {phase}, diffusion_step : {j+1} / {self.diffusion_step}')
                         img_step = self.train_data_generator.postprocess(y)
                         cv2.imshow('img_step', img_step)
-                        cv2.imshow('pe', self.train_data_generator.postprocess(pe))
+                        # cv2.imshow('pe', self.train_data_generator.postprocess(pe))
                         key = cv2.waitKey(0)
                         if key == 27:
                             exit(0)
