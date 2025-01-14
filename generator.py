@@ -145,10 +145,10 @@ class DataGenerator:
         return unique_pe
 
     def get_alphas(self, step):
-        return np.linspace(0.0, 1.0, num=step+1)
+        # return np.linspace(0.0, 1.0, num=step+1)
         # return np.sqrt(np.linspace(0.0, 1.0, num=step+1))
         # return np.linspace(0.0, 1.0, num=step+1) ** 2.0
-        # return 0.5 - 0.5 * np.cos(np.linspace(0, np.pi, num=step+1))
+        return 0.5 - 0.5 * np.cos(np.linspace(0, np.pi, num=step+1))
 
     def get_noise(self):
         return np.random.normal(loc=0.0, scale=1.0, size=np.prod(self.input_shape)).reshape(self.input_shape).astype(np.float32)
