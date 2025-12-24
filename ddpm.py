@@ -25,16 +25,23 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ['KMP_AFFINITY'] = 'noverbose'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['NCCL_P2P_DISABLE'] = '1'
+import logging
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
+import warnings
+warnings.filterwarnings(action='ignore')
+import tensorflow as tf
+tf.get_logger().setLevel('ERROR')
+tf.autograph.set_verbosity(3)
+
 import cv2
 import random
 import datetime
-import warnings
-warnings.filterwarnings(action='ignore')
 import numpy as np
 import shutil as sh
-import silence_tensorflow.auto
 import tensorflow as tf
 
 from glob import glob
