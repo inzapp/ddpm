@@ -177,8 +177,8 @@ class DDPM(CheckpointManager):
                     noise = self.train_data_generator.get_noise()
                     x = self.train_data_generator.add_noise(x, noise, alphas[phase_index])
                 for j in range(phase_index, self.diffusion_step, 1):
-                    pe = self.train_data_generator.positional_encoding_2d(j)
-                    y = np.array(self.graph_forward(self.model, [x, pe.reshape((1,) + pe.shape)])[0])
+                    pe = np.array([j / self.diffusion_step], dtype=np.float32)
+                    y = np.array(self.graph_forward(self.model, [x, pe.reshape((1, 1))])[0])
                     if show_progress:
                         print(f'phase : {i+1} / {phase}, diffusion_step : {j+1} / {self.diffusion_step}')
                         img_step = self.train_data_generator.postprocess(y)
@@ -284,6 +284,9 @@ class DDPM(CheckpointManager):
             batch_x, batch_y = self.train_data_generator.load()
             lr_scheduler.update(optimizer, iteration_count)
             loss = self.compute_gradient(self.model, optimizer, batch_x, batch_y)
+            if np.isnan(loss):
+                print('\ntraining terminated by NaN loss')
+                break
             iteration_count += 1
             progress_str = eta_calculator.update(iteration_count)
             self.print_loss(progress_str, loss)

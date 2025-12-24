@@ -38,62 +38,75 @@ class Model:
         else:
             return self.build_scaling_model(unet_depth=unet_depth, bn=bn, activation=activation)
 
+    def time_embedding(self, t, dim=32):
+        t = t * 1000.0
+        half_dim = dim // 2
+        emb = tf.math.log(10000.0) / (half_dim - 1)
+        emb = tf.exp(tf.range(half_dim, dtype=tf.float32) * -emb)
+        emb = t * emb[None, :]
+        emb = tf.concat([tf.sin(emb), tf.cos(emb)], axis=1)
+        emb = tf.keras.layers.Dense(dim, activation='swish')(emb)
+        emb = tf.keras.layers.Dense(dim)(emb)
+        return emb
+
     def build_fcn_model(self, unet_depth, bn, activation):
         input_layer_z = tf.keras.layers.Input(shape=self.input_shape)
-        input_layer_pe = tf.keras.layers.Input(shape=self.input_shape[:2] + (1,))
+        input_layer_pe = tf.keras.layers.Input(shape=(1,))
+        t_emb = self.time_embedding(input_layer_pe)
         x = input_layer_z
         xs = []
         channels, n_convs = self.infos[0]
         for _ in range(n_convs):
-            x = self.concat_pe(x, input_layer_pe)
+            x = self.concat_pe(x, t_emb)
             x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
         xs.append(x)
         for i in range(unet_depth):
             channels, n_convs = self.infos[i+1]
-            x = self.concat_pe(x, input_layer_pe)
+            x = self.concat_pe(x, t_emb)
             x = self.conv2d(x, channels, 3, 2, bn=bn, activation=activation)
             for _ in range(n_convs):
-                x = self.concat_pe(x, input_layer_pe)
+                x = self.concat_pe(x, t_emb)
                 x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
             if i < unet_depth - 1:
                 xs.append(x)
         for i in range(unet_depth, 0, -1):
             channels, n_convs = self.infos[i-1]
-            x = self.concat_pe(x, input_layer_pe)
+            x = self.concat_pe(x, t_emb)
             x = self.conv2d(x, channels, 1, 1, bn=bn, activation=activation)
-            x = self.concat_pe(x, input_layer_pe)
+            x = self.concat_pe(x, t_emb)
             x = self.conv2dtranspose(x, channels, 4, 2, bn=bn, activation=activation)
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
-                x = self.concat_pe(x, input_layer_pe)
+                x = self.concat_pe(x, t_emb)
                 x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
         output_layer = self.output_layer(x, input_layer_z, name='diffusion_output')
         return tf.keras.models.Model([input_layer_z, input_layer_pe], output_layer)
 
     def build_scaling_model(self, unet_depth, bn, activation):
         input_layer_z = tf.keras.layers.Input(shape=self.input_shape)
-        input_layer_pe = tf.keras.layers.Input(shape=self.input_shape[:2] + (1,))
+        input_layer_pe = tf.keras.layers.Input(shape=(1,))
+        t_emb = self.time_embedding(input_layer_pe)
         x = input_layer_z
         xs = []
         channels, n_convs = self.infos[0]
         for _ in range(n_convs):
-            x = self.concat_pe(x, input_layer_pe)
+            x = self.concat_pe(x, t_emb)
             x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
         for i in range(unet_depth):
             xs.append(x)
             x = self.maxpooling2d(x)
             channels, n_convs = self.infos[i+1]
             for _ in range(n_convs):
-                x = self.concat_pe(x, input_layer_pe)
+                x = self.concat_pe(x, t_emb)
                 x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
         for i in range(unet_depth, 0, -1):
             channels, n_convs = self.infos[i-1]
-            x = self.concat_pe(x, input_layer_pe)
+            x = self.concat_pe(x, t_emb)
             x = self.conv2d(x, channels, 1, 1, bn=bn, activation=activation)
             x = self.upsampling2d(x)
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
-                x = self.concat_pe(x, input_layer_pe)
+                x = self.concat_pe(x, t_emb)
                 x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
         output_layer = self.output_layer(x, input_layer_z, name='diffusion_output')
         return tf.keras.models.Model([input_layer_z, input_layer_pe], output_layer)
@@ -136,10 +149,9 @@ class Model:
 
     def concat_pe(self, x, pe):
         x_shape = tf.shape(x)
-        h = x_shape[1]
-        w = x_shape[2]
-        pe_resized = tf.image.resize(pe, (h, w))
-        return self.concat([x, pe_resized])
+        pe = tf.expand_dims(tf.expand_dims(pe, 1), 1)
+        pe = tf.tile(pe, [1, x_shape[1], x_shape[2], 1])
+        return self.concat([x, pe])
 
     def maxpooling2d(self, x):
         return tf.keras.layers.MaxPooling2D()(x)

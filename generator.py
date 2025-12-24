@@ -108,7 +108,7 @@ class DataGenerator:
         noise = self.get_noise()
         x = self.add_noise(img_f, noise, self.alphas[alpha_index])
         y = self.add_noise(img_f, noise, self.alphas[alpha_index+1])
-        pe = self.positional_encoding_2d(alpha_index)
+        pe = np.array([alpha_index / self.diffusion_step], dtype=np.float32)
         return x, y, pe
 
     def load_xy_into_q(self):
