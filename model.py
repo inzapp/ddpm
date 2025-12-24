@@ -41,25 +41,31 @@ class Model:
     def build_fcn_model(self, unet_depth, bn, activation):
         input_layer_z = tf.keras.layers.Input(shape=self.input_shape)
         input_layer_pe = tf.keras.layers.Input(shape=self.input_shape[:2] + (1,))
-        x = self.concat([input_layer_z, input_layer_pe])
+        x = input_layer_z
         xs = []
         channels, n_convs = self.infos[0]
         for _ in range(n_convs):
+            x = self.concat_pe(x, input_layer_pe)
             x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
         xs.append(x)
         for i in range(unet_depth):
             channels, n_convs = self.infos[i+1]
+            x = self.concat_pe(x, input_layer_pe)
             x = self.conv2d(x, channels, 3, 2, bn=bn, activation=activation)
             for _ in range(n_convs):
+                x = self.concat_pe(x, input_layer_pe)
                 x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
             if i < unet_depth - 1:
                 xs.append(x)
         for i in range(unet_depth, 0, -1):
             channels, n_convs = self.infos[i-1]
+            x = self.concat_pe(x, input_layer_pe)
             x = self.conv2d(x, channels, 1, 1, bn=bn, activation=activation)
+            x = self.concat_pe(x, input_layer_pe)
             x = self.conv2dtranspose(x, channels, 4, 2, bn=bn, activation=activation)
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
+                x = self.concat_pe(x, input_layer_pe)
                 x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
         output_layer = self.output_layer(x, input_layer_z, name='diffusion_output')
         return tf.keras.models.Model([input_layer_z, input_layer_pe], output_layer)
@@ -67,23 +73,27 @@ class Model:
     def build_scaling_model(self, unet_depth, bn, activation):
         input_layer_z = tf.keras.layers.Input(shape=self.input_shape)
         input_layer_pe = tf.keras.layers.Input(shape=self.input_shape[:2] + (1,))
-        x = self.concat([input_layer_z, input_layer_pe])
+        x = input_layer_z
         xs = []
         channels, n_convs = self.infos[0]
         for _ in range(n_convs):
+            x = self.concat_pe(x, input_layer_pe)
             x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
         for i in range(unet_depth):
             xs.append(x)
             x = self.maxpooling2d(x)
             channels, n_convs = self.infos[i+1]
             for _ in range(n_convs):
+                x = self.concat_pe(x, input_layer_pe)
                 x = self.conv2d(x, channels, 3, 1, bn=bn, activation=activation)
         for i in range(unet_depth, 0, -1):
             channels, n_convs = self.infos[i-1]
+            x = self.concat_pe(x, input_layer_pe)
             x = self.conv2d(x, channels, 1, 1, bn=bn, activation=activation)
             x = self.upsampling2d(x)
             x = self.add([x, xs.pop()])
             for _ in range(n_convs):
+                x = self.concat_pe(x, input_layer_pe)
                 x = self.conv2dtranspose(x, channels, 4, 1, bn=bn, activation=activation)
         output_layer = self.output_layer(x, input_layer_z, name='diffusion_output')
         return tf.keras.models.Model([input_layer_z, input_layer_pe], output_layer)
@@ -124,6 +134,13 @@ class Model:
             x = self.batch_normalization(x)
         return self.activation(x, activation)
 
+    def concat_pe(self, x, pe):
+        x_shape = tf.shape(x)
+        h = x_shape[1]
+        w = x_shape[2]
+        pe_resized = tf.image.resize(pe, (h, w))
+        return self.concat([x, pe_resized])
+
     def maxpooling2d(self, x):
         return tf.keras.layers.MaxPooling2D()(x)
 
@@ -142,8 +159,8 @@ class Model:
     def kernel_initializer(self):
         return tf.keras.initializers.glorot_normal()
 
-    def kernel_regularizer(self, l2=0.01):
-        return tf.keras.regularizers.l2(l2=l2)
+    def kernel_regularizer(self, l2=None):
+        return None if l2 is None else tf.keras.regularizers.l2(l2=l2)
 
     def activation(self, x, activation, name=None):
         if activation == 'linear':
